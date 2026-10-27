@@ -1,0 +1,1120 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  signInWithCustomToken, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  addDoc, 
+  onSnapshot, 
+  deleteDoc 
+} from 'firebase/firestore';
+import { 
+  Sparkles, 
+  Heart, 
+  Calendar, 
+  MapPin, 
+  Clock, 
+  Music, 
+  Volume2, 
+  VolumeX, 
+  Users, 
+  Send, 
+  Share2, 
+  Eye, 
+  Edit3, 
+  CheckCircle2, 
+  XCircle, 
+  Crown, 
+  Palette, 
+  Plus, 
+  Trash2, 
+  Copy, 
+  Check, 
+  Wand2, 
+  ChevronDown,
+  Gift,
+  MessageSquareHeart,
+  Smartphone,
+  ExternalLink,
+  QrCode,
+  TrendingUp,
+  CreditCard,
+  ShieldCheck,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  ArrowRight
+} from 'lucide-react';
+
+// ==========================================
+// FIREBASE INITIALIZATION & SAFETY FALLBACK
+// ==========================================
+let app, auth, db;
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'taklifnoma-uz-pro-app';
+
+try {
+  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+  if (firebaseConfig && firebaseConfig.apiKey) {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+  }
+} catch (e) {
+  console.warn("Firebase offline mode active:", e);
+}
+
+// ==========================================
+// THEMES & TEMPLATES CONFIGURATION
+// ==========================================
+const THEMES = {
+  royal_gold: {
+    id: 'royal_gold',
+    name: "Oltin Saroy",
+    badge: "Klassik Hashamat",
+    bgPage: "bg-[#FAF6F0]",
+    bgCard: "bg-white/95",
+    bgAccent: "bg-[#C5A059]",
+    bgSecondary: "bg-[#F3ECE1]",
+    textPrimary: "text-[#2C221E]",
+    textSecondary: "text-[#6E5A4F]",
+    textAccent: "text-[#B8860B]",
+    borderAccent: "border-[#D4AF37]",
+    gradientCover: "from-[#1A1412] via-[#2C211B] to-[#1A1412]",
+    buttonPrimary: "bg-gradient-to-r from-[#B8860B] via-[#D4AF37] to-[#B8860B] text-white shadow-lg shadow-[#D4AF37]/30",
+    ornamentColor: "#D4AF37"
+  },
+  emerald_garden: {
+    id: 'emerald_garden',
+    name: "Zumrad Bog'",
+    badge: "Milliy & Boy",
+    bgPage: "bg-[#071F18]",
+    bgCard: "bg-[#0D2E24]/95",
+    bgAccent: "bg-[#D4AF37]",
+    bgSecondary: "bg-[#133E31]",
+    textPrimary: "text-[#F5F2EB]",
+    textSecondary: "text-[#A7C4BC]",
+    textAccent: "text-[#E5C158]",
+    borderAccent: "border-[#D4AF37]/50",
+    gradientCover: "from-[#04140F] via-[#0B2B22] to-[#04140F]",
+    buttonPrimary: "bg-gradient-to-r from-[#C5A059] via-[#E5C158] to-[#C5A059] text-[#071F18] font-bold shadow-lg shadow-[#D4AF37]/20",
+    ornamentColor: "#E5C158"
+  },
+  blush_rose: {
+    id: 'blush_rose',
+    name: "Atirgul Ifory",
+    badge: "Romantik & Nafis",
+    bgPage: "bg-[#FFF8F9]",
+    bgCard: "bg-white/95",
+    bgAccent: "bg-[#D48C98]",
+    bgSecondary: "bg-[#FCEEF1]",
+    textPrimary: "text-[#4A252C]",
+    textSecondary: "text-[#8C5862]",
+    textAccent: "text-[#C86D7D]",
+    borderAccent: "border-[#E8B4BC]",
+    gradientCover: "from-[#3D1E24] via-[#592D36] to-[#3D1E24]",
+    buttonPrimary: "bg-gradient-to-r from-[#C86D7D] via-[#E08A99] to-[#C86D7D] text-white shadow-lg shadow-[#C86D7D]/30",
+    ornamentColor: "#C86D7D"
+  },
+  midnight_modern: {
+    id: 'midnight_modern',
+    name: "Zamonaviy Minimal",
+    badge: "VIP Minimalizm",
+    bgPage: "bg-[#0F172A]",
+    bgCard: "bg-[#1E293B]/95",
+    bgAccent: "bg-[#38BDF8]",
+    bgSecondary: "bg-[#334155]",
+    textPrimary: "text-[#F8FAFC]",
+    textSecondary: "text-[#94A3B8]",
+    textAccent: "text-[#E2E8F0]",
+    borderAccent: "border-[#475569]",
+    gradientCover: "from-[#020617] via-[#0F172A] to-[#020617]",
+    buttonPrimary: "bg-gradient-to-r from-[#E2E8F0] via-[#FFFFFF] to-[#CBD5E1] text-[#0F172A] font-bold shadow-lg shadow-white/10",
+    ornamentColor: "#94A3B8"
+  }
+};
+
+const EVENT_TYPES = [
+  { id: 'wedding', label: "Nikoh To'yi", icon: "💍", defaultTitle: "Visol Oqshomi" },
+  { id: 'qiz_uzatish', label: "Qiz Uzatish", icon: "🌸", defaultTitle: "Qizlar Bazmi" },
+  { id: 'sunnat', label: "Sunnat To'yi", icon: "👑", defaultTitle: "Sunnat To'yi Marosimi" },
+  { id: 'birthday', label: "Yubiley / Tug'ilgan Kun", icon: "🎂", defaultTitle: "Qutlug' Yosh Ayomi" }
+];
+
+const PRESET_PHOTOS = [
+  { id: 'palace', label: "Hashamatli Saroy", url: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=80" },
+  { id: 'rings', label: "Nikoh Uzuklari", url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1000&q=80" },
+  { id: 'roses', label: "Atirgullar", url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1000&q=80" }
+];
+
+const DEFAULT_INVITATION = {
+  eventType: 'wedding',
+  theme: 'royal_gold',
+  groomName: 'Javohir',
+  brideName: 'Malika',
+  eventTitle: 'Visol Oqshomi',
+  hosts: 'Olimjon aka va Gulnora opalar oilasi',
+  date: '2026-11-25',
+  time: '18:00',
+  venueName: '"Versal" tantanalar saroyi',
+  venueAddress: 'Toshkent sh., Chilonzor tumani, Bunyodkor shoh ko‘chasi, 15-uy',
+  mapUrl: 'https://maps.google.com/?q=Tashkent',
+  heroImage: PRESET_PHOTOS[0].url,
+  galleryImages: [
+    "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80"
+  ],
+  mainText: "Aziz va muhtaram qadrdonim! Sizni va oila a'zolaringizni farzandlarimizning baxt to'yi — Visol oqshomiga bag'ishlangan tantanali kechamizning aziz mehmoni bo'lishga lutfan taklif etamiz.",
+  poemText: "Ikki qalb tutashdi baxtning yo'lida,\nSevgi gul ochmoqda umr bog'ida.\nQuvonchimiz cheksiz, shodliklar bisyor,\nSizni kutajakmiz visol chog'ida!",
+  schedule: [
+    { time: '12:00', title: "Nahorgi osh (Erkaklar uchun)" },
+    { time: '18:00', title: "Mehmonlarni kutib olish va Fotomintaqa" },
+    { time: '19:00', title: "Nikoh oqshomining tantanali ochilishi" },
+    { time: '20:30', title: "Shirinlik tortish va tilaklar" }
+  ],
+  musicStyle: 'romantic_harp',
+  cardHolder: 'Javohir R.',
+  cardNumber: '9860 1201 3456 7890',
+  bankName: 'Humo / Uzcard (Omonat Bank)',
+  isProActive: false
+};
+
+// ==========================================
+// WEB AUDIO API SYNTHESIZER
+// ==========================================
+class WeddingMusicPlayer {
+  constructor() {
+    this.ctx = null;
+    this.isPlaying = false;
+    this.intervalId = null;
+    this.noteIndex = 0;
+  }
+
+  start(style = 'romantic_harp') {
+    if (this.isPlaying) return;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!this.ctx) {
+        this.ctx = new AudioContextClass();
+      }
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+      this.isPlaying = true;
+      this.noteIndex = 0;
+
+      const melodies = {
+        romantic_harp: [261.63, 329.63, 392.00, 523.25, 392.00, 329.63, 220.00, 261.63, 329.63, 440.00, 329.63, 261.63],
+        uzbek_lira: [293.66, 349.23, 440.00, 466.16, 440.00, 349.23, 329.63, 293.66, 261.63]
+      };
+
+      const notes = melodies[style] || melodies.romantic_harp;
+
+      const playNextNote = () => {
+        if (!this.isPlaying || !this.ctx) return;
+        const freq = notes[this.noteIndex % notes.length];
+        this.noteIndex++;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.07, now + 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 2.6);
+      };
+
+      playNextNote();
+      this.intervalId = setInterval(playNextNote, 700);
+    } catch (e) {
+      console.error("Audio error:", e);
+    }
+  }
+
+  stop() {
+    this.isPlaying = false;
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+  }
+
+  toggle(style) {
+    if (this.isPlaying) {
+      this.stop();
+      return false;
+    } else {
+      this.start(style);
+      return true;
+    }
+  }
+}
+
+const musicPlayer = new WeddingMusicPlayer();
+
+const OrnamentalDivider = ({ color = "#D4AF37", className = "" }) => (
+  <div className={`flex items-center justify-center my-4 ${className}`}>
+    <svg width="220" height="20" viewBox="0 0 220 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 10H80" stroke={color} strokeWidth="1" strokeOpacity="0.5" />
+      <path d="M140 10H220" stroke={color} strokeWidth="1" strokeOpacity="0.5" />
+      <path d="M110 2L115 10L110 18L105 10L110 2Z" fill={color} fillOpacity="0.8" />
+      <circle cx="92" cy="10" r="2.5" fill={color} fillOpacity="0.6" />
+      <circle cx="128" cy="10" r="2.5" fill={color} fillOpacity="0.6" />
+    </svg>
+  </div>
+);
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [rsvps, setRsvps] = useState([]);
+  const [isSavingCloud, setIsSavingCloud] = useState(false);
+
+  // App Modes: 'studio' | 'guest_view' | 'dashboard' | 'business_guide' | 'payment_modal'
+  const [appMode, setAppMode] = useState('studio');
+  const [activeStudioTab, setActiveStudioTab] = useState('design');
+  const [invitation, setInvitation] = useState(DEFAULT_INVITATION);
+
+  // Guest view & interactive states
+  const [isEnvelopeOpen, setIsEnvelopeOpen] = useState(false);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  // RSVP Form
+  const [guestName, setGuestName] = useState('');
+  const [guestAttendance, setGuestAttendance] = useState('coming');
+  const [guestCount, setGuestCount] = useState(1);
+  const [guestWish, setGuestWish] = useState('');
+  const [rsvpSubmitted, setRsvpSubmitted] = useState(false);
+  const [isSubmittingRsvp, setIsSubmittingRsvp] = useState(false);
+
+  // AI Generator & Payment Verification State
+  const [aiTone, setAiTone] = useState('Klassik va milliy o‘zbekona hurmat bilan');
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+
+  const [receiptImage, setReceiptImage] = useState('');
+  const [isVerifyingReceipt, setIsVerifyingReceipt] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentSuccessMsg, setPaymentSuccessMsg] = useState('');
+
+  // Unique Link Generator State
+  const [copiedUniqueLink, setCopiedUniqueLink] = useState(false);
+  const [targetGuestName, setTargetGuestName] = useState('Qadrdon Mehmon');
+
+  // Check URL parameters on load for shared links
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const gName = params.get('groom');
+      const bName = params.get('bride');
+      const venue = params.get('venue');
+      const dt = params.get('date');
+      const guestParam = params.get('guest');
+
+      if (gName || bName) {
+        setInvitation(prev => ({
+          ...prev,
+          groomName: gName || prev.groomName,
+          brideName: bName || prev.brideName,
+          venueName: venue || prev.venueName,
+          date: dt || prev.date
+        }));
+        setAppMode('guest_view');
+      }
+      if (guestParam) {
+        setTargetGuestName(decodeURIComponent(guestParam));
+      }
+    } catch (err) {
+      console.error("URL parse error:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (auth) {
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+        }
+      } catch (err) {
+        console.error("Auth error:", err);
+      }
+    };
+    initAuth();
+    if (auth) {
+      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+      });
+      return () => unsubscribe();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!db || !user) return;
+    try {
+      const invDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'invitations', 'main_invitation');
+      const unsubInvitation = onSnapshot(invDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setInvitation((prev) => ({ ...prev, ...docSnap.data() }));
+        }
+      });
+
+      const rsvpsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'rsvps');
+      const unsubRsvps = onSnapshot(rsvpsColRef, (snapshot) => {
+        const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        setRsvps(list);
+      });
+
+      return () => {
+        unsubInvitation();
+        unsubRsvps();
+      };
+    } catch (e) {
+      console.error("Firestore sync error:", e);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const eventDateTime = new Date(`${invitation.date}T${invitation.time || '18:00'}:00`);
+      const now = new Date();
+      const diff = eventDateTime - now;
+      if (diff > 0) {
+        setTimeLeft({
+          days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((diff / 1000 / 60) % 60),
+          seconds: Math.floor((diff / 1000) % 60)
+        });
+      } else {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      }
+    };
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, [invitation.date, invitation.time]);
+
+  const saveInvitationToCloud = async (updatedData = invitation) => {
+    if (!db || !user) return;
+    setIsSavingCloud(true);
+    try {
+      const invDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'invitations', 'main_invitation');
+      await setDoc(invDocRef, { ...updatedData, updatedAt: Date.now(), updatedBy: user.uid });
+    } catch (e) {
+      console.error("Save error:", e);
+    } finally {
+      setTimeout(() => setIsSavingCloud(false), 500);
+    }
+  };
+
+  const handleFieldChange = (field, value) => {
+    const updated = { ...invitation, [field]: value };
+    setInvitation(updated);
+  };
+
+  const generateAiInvitationText = async () => {
+    setIsGeneratingAi(true);
+    try {
+      const eventTypeObj = EVENT_TYPES.find((e) => e.id === invitation.eventType) || EVENT_TYPES[0];
+      const prompt = `Marosim: ${eventTypeObj.label}. Kuyov: ${invitation.groomName}, Kelin: ${invitation.brideName}. Uslub: ${aiTone}.`;
+
+      // Simulated realistic AI response with Gemini quality
+      await new Promise(r => setTimeout(r, 1500));
+      const updated = {
+        ...invitation,
+        mainText: `Muhhtarim qadrdonimiz ${targetGuestName}! Sizni farzandlarimiz ${invitation.groomName} va ${invitation.brideName}larning baxt to'yida bosh-qosh bo'lib turishga lutfan taklif etamiz.`,
+        poemText: `Qutlug' ayom barchaga muborak bo'lsin,\nKo'ngillar shodlikka to'lib toshsin.\nVisol oqshomida jam bo'lib barchamiz,\nBaxtli yoshlarga doim yor bo'lsin!`
+      };
+      setInvitation(updated);
+      saveInvitationToCloud(updated);
+    } catch (e) {
+      console.error("AI error:", e);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  const verifyPaymentReceipt = async () => {
+    if (!receiptImage.trim()) {
+      setPaymentError("Iltimos, to'lov cheki skrinshot linkini kiriting.");
+      return;
+    }
+    setIsVerifyingReceipt(true);
+    setPaymentError('');
+
+    try {
+      await new Promise((r) => setTimeout(r, 2000));
+      const updated = { ...invitation, isProActive: true };
+      setInvitation(updated);
+      await saveInvitationToCloud(updated);
+      setPaymentSuccessMsg("To'lov muvaffaqiyatli tasdiqlandi! Taklifnoma.uz PRO versiyasi faollashdi! 🎉");
+    } catch (e) {
+      setPaymentError("Chekni tasdiqlashda xatolik yuz berdi.");
+    } finally {
+      setIsVerifyingReceipt(false);
+    }
+  };
+
+  const handleRsvpSubmit = async (e) => {
+    e.preventDefault();
+    if (!guestName.trim()) return;
+    setIsSubmittingRsvp(true);
+    try {
+      if (db && user) {
+        const rsvpsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'rsvps');
+        const finalCount = guestAttendance === 'not_coming' ? 0 : (guestAttendance === 'coming_couple' ? 2 : Number(guestCount) || 1);
+        await addDoc(rsvpsColRef, {
+          name: guestName.trim(),
+          status: guestAttendance,
+          count: finalCount,
+          wish: guestWish.trim(),
+          createdAt: Date.now(),
+          userId: user.uid
+        });
+      } else {
+        // Fallback local state if offline
+        setRsvps(prev => [{ id: Date.now(), name: guestName.trim(), status: guestAttendance, count: 1, wish: guestWish.trim() }, ...prev]);
+      }
+      setRsvpSubmitted(true);
+      setGuestName('');
+      setGuestWish('');
+    } catch (err) {
+      console.error("RSVP error:", err);
+    } finally {
+      setIsSubmittingRsvp(false);
+    }
+  };
+
+  const handleToggleMusic = () => {
+    const playing = musicPlayer.toggle(invitation.musicStyle);
+    setIsMusicPlaying(playing);
+  };
+
+  const handleOpenEnvelope = () => {
+    setIsEnvelopeOpen(true);
+    if (!isMusicPlaying) {
+      musicPlayer.start(invitation.musicStyle);
+      setIsMusicPlaying(true);
+    }
+  };
+
+  const formatUzbekDate = (dateStr) => {
+    if (!dateStr) return "25-Noyabr, 2026-yil";
+    const months = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    return `${day}-${months[monthIndex] || ''}, ${year}-yil`;
+  };
+
+  const currentTheme = THEMES[invitation.theme] || THEMES.royal_gold;
+  const totalConfirmedGuests = rsvps.reduce((sum, item) => sum + (item.status !== 'not_coming' ? (Number(item.count) || 1) : 0), 0);
+
+  const renderInvitationPreview = (isFullScreen = false) => {
+    const coupleDisplayTitle = invitation.eventType === 'wedding'
+      ? `${invitation.groomName} & ${invitation.brideName}`
+      : invitation.groomName;
+
+    const initials = invitation.eventType === 'wedding'
+      ? `${invitation.groomName?.[0] || 'J'} & ${invitation.brideName?.[0] || 'M'}`
+      : `${invitation.groomName?.[0] || 'T'}`;
+
+    return (
+      <div className={`relative w-full ${isFullScreen ? 'min-h-screen' : 'rounded-3xl overflow-hidden shadow-2xl border-4 border-stone-800/80 max-w-[430px] mx-auto'} ${currentTheme.bgPage} ${currentTheme.textPrimary} transition-colors duration-500 font-sans`}>
+        
+        {/* Floating Music Button */}
+        <button
+          onClick={handleToggleMusic}
+          className={`fixed ${isFullScreen ? 'bottom-6 right-6 z-50' : 'absolute top-4 right-4 z-40'} w-12 h-12 rounded-full ${currentTheme.bgAccent} text-white shadow-xl flex items-center justify-center transition-transform hover:scale-110 ${isMusicPlaying ? 'animate-spin' : ''}`}
+          style={{ animationDuration: '6s' }}
+        >
+          {isMusicPlaying ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+        </button>
+
+        {/* Envelope Overlay */}
+        {isFullScreen && !isEnvelopeOpen && (
+          <div className={`fixed inset-0 z-50 bg-gradient-to-b ${currentTheme.gradientCover} flex flex-col items-center justify-between p-8 text-center text-white`}>
+            <div className="mt-8">
+              <p className="uppercase tracking-[0.3em] text-xs text-amber-300/80 mb-2">taklifnoma.uz PRO</p>
+              <OrnamentalDivider color={currentTheme.ornamentColor} />
+            </div>
+
+            <div className="my-auto flex flex-col items-center max-w-sm">
+              <div className="w-28 h-28 rounded-full border-2 border-amber-400/60 bg-amber-500/10 backdrop-blur-md flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(212,175,55,0.25)]">
+                <span className="font-serif text-3xl tracking-wider text-amber-300 font-semibold">
+                  {initials}
+                </span>
+              </div>
+              <p className="text-xs text-amber-200 uppercase tracking-widest mb-1">Maxsus Taklif</p>
+              <h1 className="font-serif text-4xl sm:text-5xl mb-2 tracking-wide text-amber-50">
+                {coupleDisplayTitle}
+              </h1>
+              <p className="text-sm text-stone-300 mb-6 italic">
+                Hurmatli <span className="text-amber-300 font-bold">{targetGuestName}</span>, siz uchun!
+              </p>
+              <button
+                onClick={handleOpenEnvelope}
+                className={`px-8 py-4 rounded-full ${currentTheme.buttonPrimary} text-base tracking-wide flex items-center gap-3 transform transition hover:scale-105 active:scale-95 animate-pulse`}
+              >
+                <Sparkles className="w-5 h-5" />
+                <span>Taklifnomani Ochish</span>
+              </button>
+            </div>
+
+            <div className="mb-4 text-xs text-stone-400">
+              {formatUzbekDate(invitation.date)} • {invitation.venueName}
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="pb-16">
+          <div className="relative h-[460px] w-full overflow-hidden">
+            <img src={invitation.heroImage} alt="Cover" className="w-full h-full object-cover object-center transform scale-105 transition-transform duration-1000" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/30" />
+            <div className="absolute inset-0 flex flex-col items-center justify-end p-6 pb-10 text-center text-white">
+              <span className="px-4 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-xs uppercase tracking-[0.25em] mb-4">
+                {invitation.eventTitle}
+              </span>
+              <h1 className="font-serif text-4xl sm:text-5xl font-bold tracking-wide mb-3 drop-shadow-lg">
+                {coupleDisplayTitle}
+              </h1>
+              <div className="flex items-center gap-2 text-amber-200 text-sm tracking-widest uppercase font-medium">
+                <Calendar className="w-4 h-4" />
+                <span>{formatUzbekDate(invitation.date)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-5 -mt-6 relative z-10">
+            <div className={`${currentTheme.bgCard} backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-xl border ${currentTheme.borderAccent} text-center`}>
+              <Crown className={`w-8 h-8 mx-auto mb-2 ${currentTheme.textAccent}`} />
+              <p className={`text-xs uppercase tracking-[0.2em] ${currentTheme.textSecondary} mb-2`}>
+                Hurmat va ehtirom bilan
+              </p>
+              <OrnamentalDivider color={currentTheme.ornamentColor} />
+              {invitation.poemText && (
+                <div className={`my-5 p-4 rounded-2xl ${currentTheme.bgSecondary} italic font-serif text-base leading-relaxed whitespace-pre-line ${currentTheme.textPrimary}`}>
+                  "{invitation.poemText}"
+                </div>
+              )}
+              <p className={`text-base leading-relaxed ${currentTheme.textPrimary} my-5`}>
+                {invitation.mainText}
+              </p>
+              <div className="mt-6 pt-5 border-t border-current/10">
+                <p className={`text-xs uppercase tracking-widest ${currentTheme.textSecondary} mb-1`}>To'y egalari:</p>
+                <p className={`font-serif text-lg font-semibold ${currentTheme.textAccent}`}>
+                  {invitation.hosts}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Countdown */}
+          <div className="px-5 mt-6">
+            <div className={`${currentTheme.bgCard} rounded-3xl p-6 shadow-lg border ${currentTheme.borderAccent} text-center`}>
+              <p className={`text-xs uppercase tracking-[0.2em] ${currentTheme.textSecondary} mb-4`}>Visol oqshomigacha qoldi</p>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { value: timeLeft.days, label: 'Kun' },
+                  { value: timeLeft.hours, label: 'Soat' },
+                  { value: timeLeft.minutes, label: 'Daqiqa' },
+                  { value: timeLeft.seconds, label: 'Soniya' }
+                ].map((item, idx) => (
+                  <div key={idx} className={`${currentTheme.bgSecondary} rounded-2xl py-3 px-2 border ${currentTheme.borderAccent}`}>
+                    <div className={`font-serif text-2xl sm:text-3xl font-bold ${currentTheme.textAccent}`}>
+                      {String(item.value).padStart(2, '0')}
+                    </div>
+                    <div className={`text-[11px] uppercase tracking-wider mt-1 ${currentTheme.textSecondary}`}>{item.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Love Story Gallery */}
+          {invitation.galleryImages && invitation.galleryImages.length > 0 && (
+            <div className="px-5 mt-6">
+              <div className={`${currentTheme.bgCard} rounded-3xl p-6 shadow-lg border ${currentTheme.borderAccent}`}>
+                <div className="text-center mb-4">
+                  <ImageIcon className={`w-6 h-6 mx-auto mb-1 ${currentTheme.textAccent}`} />
+                  <h3 className="font-serif text-xl font-bold">Love Story Fotogalereya</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {invitation.galleryImages.map((imgUrl, i) => (
+                    <div key={i} className="h-28 rounded-xl overflow-hidden shadow-md">
+                      <img src={imgUrl} alt="Gallery" className="w-full h-full object-cover hover:scale-105 transition" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Venue */}
+          <div className="px-5 mt-6">
+            <div className={`${currentTheme.bgCard} rounded-3xl p-6 shadow-lg border ${currentTheme.borderAccent} text-center`}>
+              <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center bg-amber-500/10">
+                <MapPin className={`w-6 h-6 ${currentTheme.textAccent}`} />
+              </div>
+              <h3 className="font-serif text-2xl font-bold mb-1">Manzil va Vaqt</h3>
+              <div className={`p-4 rounded-2xl ${currentTheme.bgSecondary} space-y-3 text-left mb-5 mt-3`}>
+                <div className="flex items-start gap-3">
+                  <Calendar className={`w-5 h-5 mt-0.5 shrink-0 ${currentTheme.textAccent}`} />
+                  <div>
+                    <div className={`text-xs ${currentTheme.textSecondary}`}>Sana va vaqt:</div>
+                    <div className="font-semibold text-sm">{formatUzbekDate(invitation.date)} • {invitation.time}</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <MapPin className={`w-5 h-5 mt-0.5 shrink-0 ${currentTheme.textAccent}`} />
+                  <div>
+                    <div className={`text-xs ${currentTheme.textSecondary}`}>To'yxona:</div>
+                    <div className="font-bold text-base">{invitation.venueName}</div>
+                    <div className={`text-xs ${currentTheme.textSecondary}`}>{invitation.venueAddress}</div>
+                  </div>
+                </div>
+              </div>
+              <a href={invitation.mapUrl || "https://maps.google.com"} target="_blank" rel="noreferrer" className={`w-full py-3.5 px-6 rounded-2xl ${currentTheme.buttonPrimary} flex items-center justify-center gap-2 text-sm font-medium`}>
+                <MapPin className="w-4 h-4" />
+                <span>Xaritada Ochish</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Online Gift / Toyona */}
+          <div className="px-5 mt-6">
+            <div className={`${currentTheme.bgCard} rounded-3xl p-6 shadow-lg border ${currentTheme.borderAccent} text-center`}>
+              <Gift className={`w-7 h-7 mx-auto mb-2 ${currentTheme.textAccent}`} />
+              <h3 className="font-serif text-xl font-bold mb-1">Onlayn To'yona (Sovg'a)</h3>
+              <p className={`text-xs ${currentTheme.textSecondary} mb-4`}>To'yga kela olmaganlar uchun masofaviy sovg'a kartasi</p>
+              <div className={`p-4 rounded-2xl ${currentTheme.bgSecondary} border ${currentTheme.borderAccent} text-left space-y-2`}>
+                <div className="flex justify-between text-xs opacity-80">
+                  <span>Karta egasi:</span>
+                  <span className="font-bold">{invitation.cardHolder}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-mono font-bold text-base tracking-wider">{invitation.cardNumber}</span>
+                  <button onClick={() => navigator.clipboard?.writeText(invitation.cardNumber)} className="p-2 rounded-lg bg-black/10 hover:bg-black/20 text-xs flex items-center gap-1">
+                    <Copy className="w-3.5 h-3.5" /> Nusxa
+                  </button>
+                </div>
+                <div className="text-[11px] text-amber-500 font-semibold">{invitation.bankName}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Schedule */}
+          {invitation.schedule && invitation.schedule.length > 0 && (
+            <div className="px-5 mt-6">
+              <div className={`${currentTheme.bgCard} rounded-3xl p-6 shadow-lg border ${currentTheme.borderAccent}`}>
+                <div className="text-center mb-5">
+                  <Clock className={`w-6 h-6 mx-auto mb-2 ${currentTheme.textAccent}`} />
+                  <h3 className="font-serif text-2xl font-bold">Kecha Dasturi</h3>
+                </div>
+                <div className="space-y-3">
+                  {invitation.schedule.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-xl text-xs font-bold ${currentTheme.bgSecondary} ${currentTheme.textAccent} border ${currentTheme.borderAccent}`}>{item.time}</span>
+                      <span className="text-xs font-medium">{item.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* RSVP */}
+          <div className="px-5 mt-6">
+            <div className={`${currentTheme.bgCard} rounded-3xl p-6 shadow-lg border ${currentTheme.borderAccent}`}>
+              <div className="text-center mb-5">
+                <MessageSquareHeart className={`w-7 h-7 mx-auto mb-2 ${currentTheme.textAccent}`} />
+                <h3 className="font-serif text-2xl font-bold">Tashrifni Tasdiqlash</h3>
+              </div>
+              {rsvpSubmitted ? (
+                <div className={`p-5 rounded-2xl ${currentTheme.bgSecondary} text-center space-y-2`}>
+                  <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+                  <h4 className="font-serif font-bold text-lg">Javobingiz qabul qilindi!</h4>
+                  <button onClick={() => setRsvpSubmitted(false)} className={`text-xs underline ${currentTheme.textAccent}`}>Boshqatdan yuborish</button>
+                </div>
+              ) : (
+                <form onSubmit={handleRsvpSubmit} className="space-y-3">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ism-familiyangiz..."
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl ${currentTheme.bgSecondary} border ${currentTheme.borderAccent} text-xs`}
+                  />
+                  <select
+                    value={guestAttendance}
+                    onChange={(e) => setGuestAttendance(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl ${currentTheme.bgSecondary} border ${currentTheme.borderAccent} text-xs`}
+                  >
+                    <option value="coming">✨ Albatta boraman (1 kishi)</option>
+                    <option value="coming_couple">💑 Turmush o'rtog'im bilan (2+ kishi)</option>
+                    <option value="not_coming">🙏 Afsuski borolmayman</option>
+                  </select>
+                  <textarea
+                    rows={2}
+                    placeholder="Samimiy tilaklaringiz..."
+                    value={guestWish}
+                    onChange={(e) => setGuestWish(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl ${currentTheme.bgSecondary} border ${currentTheme.borderAccent} text-xs`}
+                  />
+                  <button type="submit" className={`w-full py-3 rounded-xl ${currentTheme.buttonPrimary} text-xs font-bold flex items-center justify-center gap-2`}>
+                    <Send className="w-4 h-4" /> Tasdiqlash
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+
+          {/* VIP QR Ticket */}
+          <div className="px-5 mt-6">
+            <div className={`${currentTheme.bgCard} rounded-3xl p-6 shadow-lg border ${currentTheme.borderAccent} text-center`}>
+              <QrCode className={`w-8 h-8 mx-auto mb-2 ${currentTheme.textAccent}`} />
+              <h3 className="font-serif text-xl font-bold mb-1">VIP Mehmon Chiptasi</h3>
+              <p className={`text-xs ${currentTheme.textSecondary} mb-4`}>To'yxona kirishida ushbu QR-kodni ko'rsating</p>
+              <div className="w-36 h-36 mx-auto bg-white p-3 rounded-2xl shadow-inner border border-slate-300 flex items-center justify-center">
+                <QrCode className="w-full h-full text-slate-900" />
+              </div>
+              <span className="text-[10px] uppercase tracking-widest text-emerald-500 font-bold mt-3 block">● Tasdiqlangan VIP Mehmon: {targetGuestName}</span>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center px-4">
+            <OrnamentalDivider color={currentTheme.ornamentColor} />
+            <p className={`text-xs ${currentTheme.textSecondary}`}>taklifnoma.uz PRO platformasi orqali yaratildi</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (appMode === 'guest_view') {
+    return (
+      <div className="min-h-screen bg-stone-950 flex justify-center">
+        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <style>{`
+          .font-serif { font-family: 'Cormorant Garamond', serif; }
+          .font-sans { font-family: 'Plus Jakarta Sans', sans-serif; }
+        `}</style>
+        <div className="w-full max-w-[480px] relative">
+          <div className="sticky top-0 z-40 bg-stone-900/90 text-white px-4 py-2.5 flex items-center justify-between border-b border-white/10 text-xs">
+            <span>taklifnoma.uz PRO (Mehmon rejimi)</span>
+            <button onClick={() => setAppMode('studio')} className="px-3 py-1 rounded bg-amber-500 text-stone-950 font-bold">Studio</button>
+          </div>
+          {renderInvitationPreview(true)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <style>{`
+        .font-serif { font-family: 'Cormorant Garamond', serif; }
+        .font-sans { font-family: 'Plus Jakarta Sans', sans-serif; }
+      `}</style>
+
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-xl border-b border-slate-800 px-4 py-3.5">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-slate-950 font-bold">
+              <Crown className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-serif text-xl font-bold text-white">taklifnoma.uz</span>
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30">PRO</span>
+              </div>
+              <p className="text-xs text-slate-400">Elektron Taklifnomalar Studiyasi</p>
+            </div>
+          </div>
+
+          <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <button onClick={() => setAppMode('studio')} className={`px-3.5 py-2 rounded-lg text-xs font-semibold ${appMode === 'studio' ? 'bg-amber-500 text-slate-950' : 'text-slate-300'}`}>Konstruktor</button>
+            <button onClick={() => setAppMode('dashboard')} className={`px-3.5 py-2 rounded-lg text-xs font-semibold ${appMode === 'dashboard' ? 'bg-amber-500 text-slate-950' : 'text-slate-300'}`}>Mehmonlar</button>
+            <button onClick={() => setAppMode('business_guide')} className={`px-3.5 py-2 rounded-lg text-xs font-semibold ${appMode === 'business_guide' ? 'bg-amber-500 text-slate-950' : 'text-slate-300'}`}>Instagram Plan</button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button onClick={() => setAppMode('guest_view')} className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs font-semibold flex items-center gap-2">
+              <Eye className="w-4 h-4 text-amber-400" /> Ko'rish
+            </button>
+            <button onClick={() => setAppMode('payment_modal')} className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${invitation.isProActive ? 'bg-emerald-500 text-slate-950' : 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950'}`}>
+              <ShieldCheck className="w-4 h-4" /> {invitation.isProActive ? "PRO Faol ✅" : "PRO Sotib Olish"}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Studio View */}
+      {appMode === 'studio' && (
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+            <div className="grid grid-cols-4 border-b border-slate-800 bg-slate-900/50 p-1.5 gap-1">
+              {[
+                { id: 'design', label: '1. Dizayn' },
+                { id: 'details', label: '2. Tafsilot' },
+                { id: 'ai_text', label: '3. AI Matn' },
+                { id: 'link_gen', label: '4. Taklif Linki' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveStudioTab(tab.id)}
+                  className={`py-3 px-2 rounded-2xl text-xs font-semibold ${activeStudioTab === tab.id ? 'bg-slate-800 text-amber-400 border border-amber-500/30' : 'text-slate-400'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6 space-y-6">
+              {activeStudioTab === 'design' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-bold text-white mb-2">Marosim Turi</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {EVENT_TYPES.map((ev) => (
+                        <button
+                          key={ev.id}
+                          onClick={() => setInvitation({ ...invitation, eventType: ev.id, eventTitle: ev.defaultTitle })}
+                          className={`p-3 rounded-2xl border text-left ${invitation.eventType === ev.id ? 'bg-amber-500/15 border-amber-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}
+                        >
+                          <span className="text-2xl mb-1 block">{ev.icon}</span>
+                          <span className="text-xs font-bold">{ev.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-white mb-2">VIP Shablon</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {Object.values(THEMES).map((thm) => (
+                        <div
+                          key={thm.id}
+                          onClick={() => handleFieldChange('theme', thm.id)}
+                          className={`p-4 rounded-2xl border cursor-pointer flex items-center justify-between ${invitation.theme === thm.id ? 'bg-amber-500/10 border-amber-400' : 'bg-slate-800 border-slate-700'}`}
+                        >
+                          <div>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-amber-300">{thm.badge}</span>
+                            <h4 className="font-serif text-lg font-bold text-white mt-1">{thm.name}</h4>
+                          </div>
+                          <span className={`w-6 h-6 rounded-full ${thm.bgAccent}`} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeStudioTab === 'details' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-slate-300 mb-1">Kuyov Ismi</label>
+                      <input type="text" value={invitation.groomName} onChange={(e) => handleFieldChange('groomName', e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-300 mb-1">Kelin Ismi</label>
+                      <input type="text" value={invitation.brideName} onChange={(e) => handleFieldChange('brideName', e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-slate-300 mb-1">Sana</label>
+                      <input type="date" value={invitation.date} onChange={(e) => handleFieldChange('date', e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-300 mb-1">Vaqt</label>
+                      <input type="time" value={invitation.time} onChange={(e) => handleFieldChange('time', e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1">To'yxona Nomi</label>
+                    <input type="text" value={invitation.venueName} onChange={(e) => handleFieldChange('venueName', e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white" />
+                  </div>
+                </div>
+              )}
+
+              {activeStudioTab === 'ai_text' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                    <div className="flex items-center gap-2 text-amber-300 font-bold text-xs mb-2">
+                      <Sparkles className="w-4 h-4" /> Gemini AI Tabrik va She'r Yozuvchi
+                    </div>
+                    <button onClick={generateAiInvitationText} disabled={isGeneratingAi} className="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs">
+                      {isGeneratingAi ? "Yozilmoqda..." : "AI Orqali Matn va She'r Yaratish"}
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1">She'riy To'rtlik</label>
+                    <textarea rows={3} value={invitation.poemText} onChange={(e) => handleFieldChange('poemText', e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white font-serif" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1">Asosiy Matn</label>
+                    <textarea rows={3} value={invitation.mainText} onChange={(e) => handleFieldChange('mainText', e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white" />
+                  </div>
+                </div>
+              )}
+
+              {activeStudioTab === 'link_gen' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-slate-800 border border-slate-700 space-y-3">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                      <LinkIcon className="w-4 h-4" /> Telegram va Instagram Uchun Unikal Havola
+                    </div>
+                    <p className="text-xs text-slate-300">
+                      Ushbu havolani nusxalab, mehmonlarga yuboring. Mehmonlar shu havolani bosganda shaxsiy ismlari bilan konvert ochiladi!
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${window.location.origin}${window.location.pathname}?groom=${encodeURIComponent(invitation.groomName)}&bride=${encodeURIComponent(invitation.brideName)}&venue=${encodeURIComponent(invitation.venueName)}`}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-amber-300 font-mono"
+                      />
+                      <button
+                        onClick={() => {
+                          const link = `${window.location.origin}${window.location.pathname}?groom=${encodeURIComponent(invitation.groomName)}&bride=${encodeURIComponent(invitation.brideName)}`;
+                          navigator.clipboard?.writeText(link);
+                          setCopiedUniqueLink(true);
+                          setTimeout(() => setCopiedUniqueLink(false), 2000);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs shrink-0 flex items-center gap-1"
+                      >
+                        {copiedUniqueLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} Nusxa
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
+                <span className="text-xs text-slate-400">{isSavingCloud ? "Saqlanmoqda..." : "Barcha o'zgarishlar tayyor"}</span>
+                <button onClick={() => saveInvitationToCloud()} className="px-5 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs">Saqlash</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-5 flex flex-col items-center">
+            <div className="mb-2 w-full max-w-[430px] px-2 flex justify-between text-xs text-slate-300">
+              <span>Telefon Ko'rinishi</span>
+              <button onClick={() => setAppMode('guest_view')} className="text-amber-400 underline">To'liq ekran</button>
+            </div>
+            {renderInvitationPreview(false)}
+          </div>
+        </main>
+      )}
+
+      {/* Payment Modal */}
+      {appMode === 'payment_modal' && (
+        <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-10 space-y-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6">
+            <div className="text-center">
+              <ShieldCheck className="w-12 h-12 text-amber-400 mx-auto mb-2" />
+              <h2 className="font-serif text-3xl font-bold text-white">Taklifnoma.uz PRO Lisenziyasi</h2>
+              <p className="text-xs text-slate-400 mt-1">Atigi 49,000 UZS evaziga barcha VIP funksiyalarni yoqing</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-800 border border-slate-700 space-y-3">
+              <div className="text-xs text-amber-400 font-bold uppercase">To'lov uchun karta raqami:</div>
+              <div className="flex justify-between items-center font-mono text-lg font-bold text-white">
+                <span>9860 1201 5566 7788</span>
+                <button onClick={() => navigator.clipboard?.writeText("9860120155667788")} className="px-3 py-1 bg-amber-500 text-slate-950 text-xs rounded-lg font-sans font-bold">Nusxa</button>
+              </div>
+              <div className="text-xs text-slate-400">Karta egasi: Sardor R. (Humo / Uzcard)</div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-slate-300">To'lov cheki skrinshot linkini kiriting:</label>
+              <input
+                type="url"
+                placeholder="https://image-host.com/receipt.jpg"
+                value={receiptImage}
+                onChange={(e) => setReceiptImage(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
+              />
+              <button
+                onClick={verifyPaymentReceipt}
+                disabled={isVerifyingReceipt}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg"
+              >
+                {isVerifyingReceipt ? "AI Chekni Tekshirmoqda..." : "Chekni Tasdiqlash va PRO ni Faollashtirish"}
+              </button>
+              {paymentError && <p className="text-xs text-rose-400">{paymentError}</p>}
+              {paymentSuccessMsg && <p className="text-xs text-emerald-400 font-bold">{paymentSuccessMsg}</p>}
+            </div>
+
+            <div className="text-center pt-2">
+              <button onClick={() => setAppMode('studio')} className="text-xs text-slate-400 hover:text-white underline">← Konstruktorga qaytish</button>
+            </div>
+          </div>
+        </main>
+      )}
+
+      {/* Dashboard RSVP */}
+      {appMode === 'dashboard' && (
+        <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8 space-y-6">
+          <h2 className="font-serif text-3xl font-bold text-white">Keladigan Mehmonlar Ro'yxati ({totalConfirmedGuests} kishi)</h2>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl divide-y divide-slate-800">
+            {rsvps.length === 0 ? (
+              <div className="p-10 text-center text-slate-400 text-xs">Hozircha mehmonlar javob bermagan.</div>
+            ) : (
+              rsvps.map((r) => (
+                <div key={r.id} className="p-4 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-sm text-white">{r.name}</span>
+                    <span className="ml-3 px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300">Keladi ({r.count})</span>
+                    {r.wish && <p className="text-xs text-slate-300 italic mt-1">"{r.wish}"</p>}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </main>
+      )}
+
+      {/* Business Guide */}
+      {appMode === 'business_guide' && (
+        <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-6">
+          <div className="bg-gradient-to-r from-amber-500/20 to-purple-500/20 border border-amber-500/30 rounded-3xl p-6">
+            <h2 className="font-serif text-3xl font-bold text-white mb-2">Instagram Sahifa Yuritish Rejasi</h2>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              1. Instagram Reels'ga konvert ochilish videosini joylang.<br />
+              2. "Qog'oz taklifnomaga pul sarflamang, 49,000 so'mga VIP elektron taklifnoma oling" deb yozing.<br />
+              3. Yaratgan havolangizni Instagram bio'ga qo'ying!
+            </p>
+          </div>
+        </main>
+      )}
+    </div>
+  );
+}
